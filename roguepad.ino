@@ -10,6 +10,7 @@
 #define _keys_KEYLEN 4
 #define _keys_VALLEN 4
 
+
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 // hardware pin numbers for the joystick shield V1.a
@@ -34,8 +35,8 @@ boolean prev_j_button = false;
 String key_names[] = { "A", "B", "C", "D", "E", "F", "J"};
 int key_values[] = {0, 0, 0, 0, 0, 0, 0};
 
-void setup() {
 
+void setup() {
   Serial.begin(9600);
 // инициализация и очистка дисплея
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3D for 128x64
@@ -74,11 +75,26 @@ void handle_button(const String *button_name, bool new_val, int button_num) {
   display.print(key_values[button_num]);
 }
 
+void handle_joystick() {
+  int val_x_joystick = map(analogRead(x_joystick), 1000, 0, 1, -1);
+  int val_y_joystick = map(analogRead(y_joystick), 1000, 0, 1, -1);
+  display.print("X"); display.print(val_x_joystick);
+  display.print("Y"); display.print(val_y_joystick);
+}
+
+void draw() {
+
+}
+
 void update() {
-  // display.clearDisplay();
-  display.setCursor(0, 0);
-  delay(200);
   display.display();
+  delay(100);
+
+  display.clearDisplay();
+  display.display();
+  display.setCursor(0, 0);
+  
+  
   for (int i = 0; i < 7; i++) {
     key_values[i] = 0;
   }
@@ -86,7 +102,6 @@ void update() {
 
 void loop() {
   
-
   for (int i = 0; i < 7; i++) {
     handle_button(&key_names[i], digitalRead(buttons[i]) == LOW, i);
 
@@ -95,10 +110,8 @@ void loop() {
 
   }
 
-  // to parse analog sensors to digital ones, we first read them and 
-  // map them to a value in [-1, 0, 1]
-  // int val_x_joystick = map(analogRead(x_joystick), 0, 1000, -1, 1);
-  // int val_y_joystick = map(analogRead(y_joystick), 0, 1000, -1, 1);
+  handle_joystick();
+
   update();
   
 }
