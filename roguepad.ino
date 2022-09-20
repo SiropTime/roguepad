@@ -47,7 +47,29 @@ int defaultRoom[MAP_ROWS][MAP_COLS] = {
 
 // Declaring character and everything with him
 struct Player {
-  int hp, mp;
+  int hp, mp, pearls; // Health, mana and pearls (money)
+  int ultra; // Max 5 point, when max you can use ultra skill
+  int x, y; // Current position
+  bool isOpenedInventory;
+
+
+};
+
+static const unsigned char PROGMEM player_bmp[] = 
+{
+  0x00, 
+  0x7e, 
+  0x5a, 
+  0x5a, 
+  0x7e, 
+  0x3c, 
+  0x7e, 
+  0xdb
+};
+
+struct Spell {
+  int manaCost;
+  String effect;
 };
 
 Player player;
@@ -89,8 +111,14 @@ void setup() {
   }
 
   // Init player
+  player.x = 5;
+  player.y = 2;
+
   player.hp = 10;
   player.mp = 10;
+  player.pearls = 5;
+  player.ultra = 5;
+  player.isOpenedInventory = false;
 }
 
 // Handling buttons and displaying them
@@ -99,17 +127,19 @@ void handle_button(const char *button_name, bool new_val, int button_num) {
   if (new_val) {
     key_values[button_num] = 1;
   }
-
-  // display.print(key_names[button_num]);
-  // display.print(key_values[button_num]);
 }
 
 // Handling joystick and displaying it
 void handle_joystick() {
   int val_x_joystick = map(analogRead(x_joystick), 1000, 0, 1, -1);
-  int val_y_joystick = map(analogRead(y_joystick), 1000, 0, 1, -1);
-  // display.print("X"); display.print(val_x_joystick);
-  // display.print("Y"); display.print(val_y_joystick);
+  int val_y_joystick = map(analogRead(y_joystick), 1000, 0, -1, 1);
+  Serial.println(val_x_joystick, val_y_joystick);
+
+  if (defaultRoom[player.y + val_y_joystick][player.x + val_x_joystick] == 0) {
+    player.x += val_x_joystick;
+    player.y += val_y_joystick;
+  }
+  
 }
 
 // Draw graphics for each call
@@ -117,17 +147,28 @@ void drawMap() {
   for (int row = 0; row < MAP_ROWS; row++) {
     for (int col = 0; col < MAP_COLS; col++) {
       if (defaultRoom[row][col]) {
-        display.fillRect(col*8, row*8 + TILE_SIZE * 2, TILE_SIZE, TILE_SIZE, SSD1306_WHITE);
+        display.fillRect(col*8, row*8 + TILE_SIZE*2, TILE_SIZE, TILE_SIZE, SSD1306_WHITE);
       }
       
     }
   }
+  display.drawBitmap(player.x*8, player.y*8 + TILE_SIZE*2, player_bmp, TILE_SIZE, TILE_SIZE, 1);
 
 }
 
 void drawGUI() {
   display.setCursor(0, 0);
+  // Health points
   display.print("HP:"); display.print(player.hp);
+  // Pearls
+  display.print(" P:"); display.print(player.pearls);
+  // Ultra
+  display.print(" U:");
+  for (int u = 0; u < player.ultra; u++) {
+    display.print("|");
+  }
+
+  // Mana points
   display.print("\nMP:"); display.print(player.mp);
 }
 
@@ -151,16 +192,24 @@ void update() {
 void loop() {
   for (int i = 0; i < 7; i++) {
     handle_button(key_names[i], digitalRead(buttons[i]) == LOW, i);
-
     Serial.print(key_names[i]);
     Serial.print(key_values[i]);
+    
+  }
+
+  if (key_values[4] == 1 && player.isOpenedInventory) {
+
+  } else if (key_values[4] == 1 && !player.isOpenedInventory) {
 
   }
 
+  Serial.println("");
   handle_joystick();
   drawGUI();
-  drawMap();
-  // display.fillRect(10, 00, 30, 30, SSD1306_WHITE);
+  if (!player.isOpenedInventory) {
+    drawMap();
+  }
+  
 
   update();
   
