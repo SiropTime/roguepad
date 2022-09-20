@@ -11,6 +11,8 @@
 #define MAP_COLS 16
 
 #define TILE_SIZE 8
+#define ITEM_SIZE 16
+#define ITEM_IMAGE_SIZE 12
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
@@ -46,15 +48,6 @@ int defaultRoom[MAP_ROWS][MAP_COLS] = {
 };
 
 // Declaring character and everything with him
-struct Player {
-  int hp, mp, pearls; // Health, mana and pearls (money)
-  int ultra; // Max 5 point, when max you can use ultra skill
-  int x, y; // Current position
-  bool isOpenedInventory;
-
-
-};
-
 static const unsigned char PROGMEM player_bmp[] = 
 {
   0x00, 
@@ -67,12 +60,55 @@ static const unsigned char PROGMEM player_bmp[] =
   0xdb
 };
 
-struct Spell {
-  int manaCost;
-  String effect;
+static const unsigned char PROGMEM shark_fangs_image[] =
+{
+  0x01, 0xc0, 
+  0x03, 0xc0, 
+  0x07, 0x80, 
+  0x0f, 0x00, 
+  0x0e, 0x00, 
+  0x1e, 0x00, 
+  0x1f, 0x00, 
+  0x1f, 0xc0, 
+  0x1f, 0xc0, 
+  0x0f, 0xc0, 
+  0x0f, 0xc0, 
+  0x07, 0xc0, 
 };
 
+// struct Spell {
+//   int manaCost;
+//   int effect;
+// };
+
+struct Item {
+  int type = 0;
+  int strength;
+  char description[16];
+  int image_id = -1;
+};
+
+// struct Armor {
+//   int defence;
+//   int effectType;
+// };
+
+struct Player {
+  int hp, mp, pearls; // Health, mana and pearls (money)
+  int ultra; // Max 5 point, when max you can use ultra skill
+  int x, y; // Current position
+  
+  bool isOpenedInventory;
+  int currentPointer;
+  Item *inventory[4];
+};
+
+const unsigned char *items_images[] = { shark_fangs_image, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
 Player player;
+
+Item shark_fangs;
+Item empty_item;
 
 void setup() {
   Serial.begin(9600);
@@ -88,7 +124,7 @@ void setup() {
   display.setTextColor(WHITE);
   display.setCursor(0, 10);
 
-  display.println("Starting  game!");
+  display.println("Sirop 2022");
   display.display(); 
   
   delay(1000);
@@ -103,13 +139,6 @@ void setup() {
     pinMode(buttons[i], INPUT);
   }
 
-  for (int row = 0; row < MAP_ROWS; row++) {
-    for (int col = 0; col < MAP_COLS; col++) {
-      m_map[row][col] = random(0, 2);
-      Serial.println(m_map[row][col]);
-    }
-  }
-
   // Init player
   player.x = 5;
   player.y = 2;
@@ -118,7 +147,31 @@ void setup() {
   player.mp = 10;
   player.pearls = 5;
   player.ultra = 5;
+
+  player.currentPointer = 0;
   player.isOpenedInventory = false;
+
+  // Init items
+  shark_fangs.image_id = 0;
+  shark_fangs.strength = 8;
+  shark_fangs.type = 1;
+
+  empty_item.image_id = 4;
+  empty_item.type = 0;
+
+  player.inventory[0] = &shark_fangs;
+
+  for (int i = 1; i < 4; i++) {
+    player.inventory[i] = &empty_item;
+  }
+}
+
+// Making flash screen effect
+void make_effect() {
+  for (int e = 1; e < 11; e++) {
+    display.invertDisplay(e%2);
+    delay(100);
+  }
 }
 
 // Handling buttons and displaying them
@@ -133,11 +186,31 @@ void handle_button(const char *button_name, bool new_val, int button_num) {
 void handle_joystick() {
   int val_x_joystick = map(analogRead(x_joystick), 1000, 0, 1, -1);
   int val_y_joystick = map(analogRead(y_joystick), 1000, 0, -1, 1);
-  Serial.println(val_x_joystick, val_y_joystick);
 
-  if (defaultRoom[player.y + val_y_joystick][player.x + val_x_joystick] == 0) {
-    player.x += val_x_joystick;
-    player.y += val_y_joystick;
+  if (!player.isOpenedInventory) {
+    if (defaultRoom[player.y + val_y_joystick][player.x + val_x_joystick] == 0) {
+      player.x += val_x_joystick;
+      player.y += val_y_joystick;
+      Serial.print(player.x); Serial.print(" "); Serial.print(player.y); Serial.println("");
+      if (player.x > 15) {
+        make_effect();
+        player.x = 0;
+      }
+      if (player.x < 0) {
+        make_effect();
+        player.x = 15;
+      } 
+    } else if (player.y + val_y_joystick < 0) {
+      make_effect();
+      player.y = 5;
+    } else if (player.y + val_y_joystick > 5) {
+      make_effect();
+      player.y = 0;
+    }
+  } else {
+    if (!(player.currentPointer + val_x_joystick < 0 || player.currentPointer + val_x_joystick > 7)) {
+      player.currentPointer += val_x_joystick;
+    }
   }
   
 }
@@ -146,14 +219,31 @@ void handle_joystick() {
 void drawMap() {
   for (int row = 0; row < MAP_ROWS; row++) {
     for (int col = 0; col < MAP_COLS; col++) {
-      if (defaultRoom[row][col]) {
-        display.fillRect(col*8, row*8 + TILE_SIZE*2, TILE_SIZE, TILE_SIZE, SSD1306_WHITE);
+      if (defaultRoom[row][col] == 1) {
+        display.fillRect(col*8, row*8 + TILE_SIZE*2, TILE_SIZE, TILE_SIZE, SSD1306_WHITE); 
       }
-      
     }
+    display.drawBitmap(player.x*8, player.y*8 + TILE_SIZE*2, player_bmp, TILE_SIZE, TILE_SIZE, 1);
   }
-  display.drawBitmap(player.x*8, player.y*8 + TILE_SIZE*2, player_bmp, TILE_SIZE, TILE_SIZE, 1);
+}
 
+// Drawing inventory
+void drawInventory() {
+
+  
+  for (int i = 0; i < 4; i++) {
+    if (i != player.currentPointer) {
+      display.drawRect(i*16+32, 24, ITEM_SIZE, ITEM_SIZE, SSD1306_WHITE);
+    } else {
+      display.drawRect(i*16+32, 24, ITEM_SIZE, ITEM_SIZE, SSD1306_WHITE);
+      display.drawRect(i*16+32+1, 24+1, ITEM_SIZE-1, ITEM_SIZE-1, SSD1306_WHITE);
+      display.drawRect(i*16+32+2, 24+2, ITEM_SIZE-2, ITEM_SIZE-2, SSD1306_WHITE);
+    }
+    if (player.inventory[i]->type != 0) {
+      display.drawBitmap(i*16+32+2, 24+2, items_images[player.inventory[i]->image_id], ITEM_IMAGE_SIZE, ITEM_IMAGE_SIZE, 1);
+    }
+    
+  }
 }
 
 void drawGUI() {
@@ -170,6 +260,9 @@ void drawGUI() {
 
   // Mana points
   display.print("\nMP:"); display.print(player.mp);
+  if (player.isOpenedInventory) {
+    display.print("\nInventory");
+  }
 }
 
 // Updating everything for loop
@@ -192,15 +285,12 @@ void update() {
 void loop() {
   for (int i = 0; i < 7; i++) {
     handle_button(key_names[i], digitalRead(buttons[i]) == LOW, i);
-    Serial.print(key_names[i]);
-    Serial.print(key_values[i]);
-    
   }
 
   if (key_values[4] == 1 && player.isOpenedInventory) {
-
+    player.isOpenedInventory = false;
   } else if (key_values[4] == 1 && !player.isOpenedInventory) {
-
+    player.isOpenedInventory = true;
   }
 
   Serial.println("");
@@ -208,6 +298,8 @@ void loop() {
   drawGUI();
   if (!player.isOpenedInventory) {
     drawMap();
+  } else {
+    drawInventory();
   }
   
 
