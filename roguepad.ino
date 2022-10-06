@@ -38,15 +38,15 @@ uint8_t buttons[] = {
 const char * key_names[] = { "A", "B", "C", "D", "E", "F", "J"};
 uint8_t key_values[] = {0, 0, 0, 0, 0, 0, 0};
 
-// Default borders for the map
-const uint8_t defaultRoom[MAP_ROWS][MAP_COLS] = {
-  { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1 },
-  { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-  { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
-  { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1 }
-};
+// // Default borders for the map
+// const uint8_t defaultRoom[MAP_ROWS][MAP_COLS] = {
+//   { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1 },
+//   { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
+//   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+//   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+//   { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 },
+//   { 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1 }
+// };
 // Map with enemies, treasures, traps and etc
 uint8_t currentRoomFilling[MAP_ROWS-2][MAP_COLS-2] = {
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
@@ -102,9 +102,9 @@ static const unsigned char PROGMEM shark_fangs_image[] =
 
 struct Item {
   uint8_t type = 0;
-  int strength;
+  uint8_t strength;
   char description[16];
-  int image_id = -1;
+  int8_t image_id = -1;
 };
 
 // struct Armor {
@@ -115,13 +115,20 @@ struct Item {
 // Declaring player
 
 struct Player {
-  int hp, mp, pearls; // Health, mana and pearls (money)
-  int ultra; // Max 5 point, when max you can use ultra skill
-  int x, y; // Current position
+  uint8_t hp, mp, pearls; // Health, mana and pearls (money)
+  uint8_t ultra; // Max 5 point, when max you can use ultra skill
+  uint8_t x, y; // Current position
   
   bool isOpenedInventory;
-  int currentPointer;
+  uint8_t currentPointer;
   Item *inventory[INVENTORY_SIZE];
+
+  bool checkBorders(uint8_t nx, uint8_t ny) {
+    if ((nx < 1 || nx > 14) && !(ny > 1 && ny < 4)) return true;
+    if ((ny < 1 || ny > 4) && !(nx > 6 && nx < 9)) return true;
+
+    return false;
+  }
 };
 
 const unsigned char *items_images[]= { shark_fangs_image, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -256,25 +263,25 @@ void updateMap() {
 }
 
 void drawRoomFillings() {
-  for (uint8_t row = 0; row < MAP_ROWS - 2; row++) {
-    for (uint8_t col = 0; col < MAP_COLS - 2; col++) {
-      uint8_t filling = currentRoomFilling[row][col];
-      switch (filling) {
-        case 11:
-          display.drawBitmap(col*8+8, row*8+40, jap, TILE_SIZE, TILE_SIZE, 1);
-          break;
-        case 21:
-          display.drawBitmap(col*8+8, row*8+40, spikes, TILE_SIZE, TILE_SIZE, 1);
-          break;
-        case 31:
-          display.drawBitmap(col*8+8, row*8+40, vase, TILE_SIZE, TILE_SIZE, 1);
-          break;
-        case 41:
-          display.drawBitmap(col*8+8, row*8+40, fish, TILE_SIZE, TILE_SIZE, 1);
-          break;
-      }
-    }
-  }
+  // for (uint8_t row = 0; row < MAP_ROWS - 2; row++) {
+  //   for (uint8_t col = 0; col < MAP_COLS - 2; col++) {
+  //     uint8_t filling = currentRoomFilling[row][col];
+  //     switch (filling) {
+  //       case 11:
+  //         display.drawBitmap(col*8+8, row*8+40, jap, TILE_SIZE, TILE_SIZE, 1);
+  //         break;
+  //       case 21:
+  //         display.drawBitmap(col*8+8, row*8+40, spikes, TILE_SIZE, TILE_SIZE, 1);
+  //         break;
+  //       case 31:
+  //         display.drawBitmap(col*8+8, row*8+40, vase, TILE_SIZE, TILE_SIZE, 1);
+  //         break;
+  //       case 41:
+  //         display.drawBitmap(col*8+8, row*8+40, fish, TILE_SIZE, TILE_SIZE, 1);
+  //         break;
+  //     }
+  //   }
+  // }
   
 }
 
@@ -300,23 +307,25 @@ void handle_joystick() {
   int val_y_joystick = map(analogRead(y_joystick), 1000, 0, -1, 1);
 
   if (!player.isOpenedInventory) {
-    if (defaultRoom[player.y + val_y_joystick][player.x + val_x_joystick] == 0) {
+    if (!player.checkBorders(player.x + val_x_joystick, player.y + val_y_joystick)) {
       player.x += val_x_joystick;
       player.y += val_y_joystick;
-      if (player.x > 15) {
+      if (player.x > 14) {
         changeRoom();
-        player.x = 0;
+        player.x = 1;
       }
-      if (player.x < 0) {
+      if (player.x < 1) {
         changeRoom();
-        player.x = 15;
+        player.x = 14;
       } 
-    } else if (player.y + val_y_joystick < 0) {
-      changeRoom();
-      player.y = 5;
-    } else if (player.y + val_y_joystick > 5) {
-      changeRoom();
-      player.y = 0;
+      if (player.y < 1) {
+        changeRoom();
+        player.y = 4;
+      }
+      if (player.y > 4) {
+        changeRoom();
+        player.y = 1;
+      }
     }
   } else {
     if (!(player.currentPointer + val_x_joystick < 0 || player.currentPointer + val_x_joystick > 3)) {
@@ -328,14 +337,23 @@ void handle_joystick() {
 
 // Draw graphics for each call
 void drawMap() {
-  for (uint8_t row = 0; row < MAP_ROWS; row++) {
-    for (uint8_t col = 0; col < MAP_COLS; col++) {
-      if (defaultRoom[row][col] == 1) {
-        display.fillRect(col*8, row*8 + TILE_SIZE*2, TILE_SIZE, TILE_SIZE, SSD1306_WHITE); 
-      }
-    }
-    display.drawBitmap(player.x*8, player.y*8 + TILE_SIZE*2, player_bmp, TILE_SIZE, TILE_SIZE, 1);
-  }
+
+  // Drawing by single method call instead of making this in the loop to save memory
+
+  // Top
+  display.fillRect(0, TILE_SIZE*2, TILE_SIZE*7, TILE_SIZE, SSD1306_WHITE);
+  display.fillRect(0, TILE_SIZE*3, TILE_SIZE, TILE_SIZE, SSD1306_WHITE);
+  display.fillRect(TILE_SIZE*15, TILE_SIZE*3, TILE_SIZE, TILE_SIZE, SSD1306_WHITE);
+  display.fillRect(TILE_SIZE*9, TILE_SIZE*2, TILE_SIZE*7, TILE_SIZE, SSD1306_WHITE);
+
+  // Bottom
+  display.fillRect(0, TILE_SIZE*6, TILE_SIZE, TILE_SIZE, SSD1306_WHITE);
+  display.fillRect(TILE_SIZE*15, TILE_SIZE*6, TILE_SIZE, TILE_SIZE, SSD1306_WHITE);
+  display.fillRect(0, TILE_SIZE*7, TILE_SIZE*7, TILE_SIZE, SSD1306_WHITE);
+  display.fillRect(TILE_SIZE*9, TILE_SIZE*7, TILE_SIZE*7, TILE_SIZE, SSD1306_WHITE);
+
+  // Drawing player
+  display.drawBitmap(player.x*8, player.y*8 + TILE_SIZE*2, player_bmp, TILE_SIZE, TILE_SIZE, 1);
 }
 
 // Drawing inventory
